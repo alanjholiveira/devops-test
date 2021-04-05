@@ -1,0 +1,107 @@
+version: '3.5'
+
+services: 
+    pg-task:
+        container_name: pg-tasks
+        image: postgres:9.6.17-alpine
+        ports: 
+            - 5432:5432
+        environment: 
+            POSTGRES_DB: tasks
+            POSTGRES_PASSWORD: password
+        networks: 
+            - appnet
+    
+    tomcat:
+        container_name: tomcat
+        image: tomcat:8.5.64-jdk8-openjdk-slim
+        ports: 
+            - 8001:8080
+        volumes: 
+            - ./.docker/tomcat/conf/tomcat-users.xml:/usr/local/tomcat/conf/tomcat-users.xml
+            - ./.docker/tomcat/webapps/docs:/usr/local/tomcat/webapps/docs
+            - ./.docker/tomcat/webapps/host-manager:/usr/local/tomcat/webapps/host-manager
+            - ./.docker/tomcat/webapps/manager:/usr/local/tomcat/webapps/manager
+            - ./.docker/tomcat/webapps/ROOT:/usr/local/tomcat/webapps/ROOT
+        environment: 
+            CATALINA_BASE:   /usr/local/tomcat
+            CATALINA_HOME:   /usr/local/tomcat
+            CATALINA_TMPDIR: /usr/local/tomcat/temp
+            # JRE_HOME:        /usr
+            CLASSPATH:       /usr/local/tomcat/bin/bootstrap.jar:/usr/local/tomcat/bin/tomcat-juli.jar
+        networks: 
+            - appnet
+            - seleniumGrid
+
+    jenkins:
+        container_name: jenkins
+        image: jenkins/jenkins
+        ports: 
+            - 8000:8080
+        networks: 
+            - appnet
+            - sonarnet
+            - seleniumGrid
+    
+    sonarqube:
+        container_name: sonar
+        image: sonarqube:7.9.2-community
+        ports:
+            - 9000:9000
+        networks:
+            - sonarnet
+        volumes:
+            - sonarqube_conf:/opt/sonarqube/conf
+            - sonarqube_data:/opt/sonarqube/data
+            - sonarqube_extensions:/opt/sonarqube/extensions
+            - sonarqube_bundled-plugins:/opt/sonarqube/lib/bundled-plugins
+
+    selenium-hub:
+        image: selenium/hub:3.141.59-zinc
+        container_name: selenium-hub
+        networks:
+            - seleniumGrid
+            - appnet
+        ports:
+            - "4444:4444"
+
+    chrome:
+        image: selenium/node-chrome:3.141.59-zinc
+        container_name: Chrome-1
+        networks:
+            - seleniumGrid
+            - appnet
+        depends_on:
+            - selenium-hub            
+        environment:
+            - HUB_HOST=selenium-hub
+            - HUB_PORT=4444
+            - NODE_MAX_INSTANCES=2
+            - NODE_MAX_SESSIONS=2
+
+    chrome2:
+        image: selenium/node-chrome:3.141.59-zinc
+        container_name: Chrome-2
+        networks:
+            - seleniumGrid
+            - appnet
+        depends_on:
+            - selenium-hub
+        environment:
+            - HUB_HOST=selenium-hub
+            - HUB_PORT=4444
+            - NODE_MAX_INSTANCES=2
+            - NODE_MAX_SESSIONS=2
+
+networks:
+    sonarnet:
+    appnet:
+    seleniumGrid:
+
+volumes:
+    sonarqube_conf:
+    sonarqube_data:
+    sonarqube_extensions:
+    sonarqube_bundled-plugins:
+    postgresql:
+    postgresql_data:
